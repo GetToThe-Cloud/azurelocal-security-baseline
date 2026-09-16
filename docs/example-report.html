@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Example report: Azure Local security baseline</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px; font-family: 'Segoe UI', -apple-system, system-ui, sans-serif;
+         background: #f4f7fb; color: #12243a; font-size: 14px; line-height: 1.5; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  header { background: linear-gradient(120deg, #0b3d86, #0078d4); color: #fff;
+           border-radius: 14px; padding: 28px 32px; }
+  header h1 { margin: 0 0 6px; font-size: 25px; letter-spacing: -.4px; }
+  header .meta { opacity: .88; font-size: 13.5px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+           gap: 14px; margin: 22px 0; }
+  .card { background: #fff; border: 1px solid #dde6f0; border-radius: 12px; padding: 18px 20px; }
+  .card .n { font-size: 30px; font-weight: 700; letter-spacing: -1px; }
+  .card .l { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #5b6b7f;
+             font-weight: 600; margin-top: 4px; }
+  .n.ok { color: #0b6a3c; } .n.bad { color: #b3261e; }
+  .n.warn { color: #9a6700; } .n.unknown { color: #5b6b7f; }
+  table { width: 100%; border-collapse: collapse; background: #fff;
+          border: 1px solid #dde6f0; border-radius: 12px; overflow: hidden; }
+  th { background: #0b3d86; color: #fff; text-align: left; padding: 11px 14px;
+       font-size: 11.5px; text-transform: uppercase; letter-spacing: .8px; }
+  td { padding: 12px 14px; border-top: 1px solid #eef2f7; vertical-align: top; }
+  tr.r-bad td { background: #fdf4f3; }
+  tr.r-unknown td { background: #fbf9f2; }
+  .c-id { font-family: Consolas, monospace; font-size: 12px; white-space: nowrap; }
+  .c-id a { color: #0b5cad; text-decoration: none; }
+  .c-id a:hover { text-decoration: underline; }
+  .c-val { font-family: Consolas, monospace; font-size: 12px; color: #40506a; max-width: 190px;
+           word-break: break-word; }
+  .t { font-weight: 600; }
+  .d { color: #5b6b7f; font-size: 13px; margin-top: 3px; }
+  .flags { margin-top: 6px; }
+  .flag { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+          letter-spacing: .6px; background: #eef2f7; color: #40506a; border-radius: 4px;
+          padding: 3px 7px; margin-right: 5px; }
+  .sev, .status { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 5px;
+                  padding: 4px 9px; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
+  .sev-critical { background: #fde8e6; color: #93190f; }
+  .sev-high { background: #fdf0e0; color: #8a4b00; }
+  .sev-medium { background: #eef5fd; color: #0b5cad; }
+  .sev-low { background: #eef2f7; color: #40506a; }
+  .status-ok { background: #e3f6ec; color: #0b6a3c; }
+  .status-bad { background: #fde8e6; color: #93190f; }
+  .status-unknown { background: #fdf6e3; color: #8a6d00; }
+  .status-muted { background: #eef2f7; color: #5b6b7f; }
+  footer { margin-top: 22px; color: #5b6b7f; font-size: 12.5px; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #0e1621; color: #e6edf5; }
+    .card, table { background: #16202e; border-color: #26374d; }
+    td { border-top-color: #22303f; }
+    tr.r-bad td { background: #2a1a1a; }
+    tr.r-unknown td { background: #262218; }
+    .c-val { color: #a9bdd6; } .d, .card .l, footer { color: #94a8c0; }
+    .flag { background: #22303f; color: #a9bdd6; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Example report: Azure Local security baseline</h1>
+    <div class="meta">
+      Profile: GetToTheCloud-Standard &middot;
+      Scope: Cluster &middot;
+      Generated: 2026-09-15 22:36:24 UTC
+    </div>
+  </header>
+
+  <div class="cards">
+    <div class="card"><div class="n bad">56%</div><div class="l">Compliance</div></div>
+    <div class="card"><div class="n ok">14</div><div class="l">Compliant</div></div>
+    <div class="card"><div class="n bad">11</div><div class="l">Non-compliant</div></div>
+    <div class="card"><div class="n unknown">1</div><div class="l">Unknown</div></div>
+    <div class="card"><div class="n bad">2</div><div class="l">Critical findings</div></div>
+    <div class="card"><div class="n warn">6</div><div class="l">Auto-remediable</div></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Control</th><th>Severity</th><th>Status</th><th>Finding</th><th>Expected</th><th>Actual</th></tr>
+    </thead>
+    <tbody>
+<tr class="r-bad">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-bitlocker" target="_blank" rel="noopener">AZL-BL-002</a></td>
+  <td><span class="sev sev-critical">Critical</span></td>
+  <td><span class="status status-bad">Non-compliant</span></td>
+  <td>
+    <div class="t">Every Cluster Shared Volume is BitLocker encrypted</div>
+    <div class="d">Unprotected: C:\ClusterStorage\Volume3. Enabling encryption pauses virtual machines during the initial phases, so schedule a maintenance window.</div>
+    <div class="flags"><span class="flag">auto-remediable</span><span class="flag">maintenance window</span></div>
+  </td>
+  <td class="c-val">All volumes protected</td>
+  <td class="c-val">1/2 protected</td>
+</tr><tr class="r-bad">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-wdac" target="_blank" rel="noopener">AZL-WDAC-001</a></td>
+  <td><span class="sev sev-critical">Critical</span></td>
+  <td><span class="status status-bad">Non-compliant</span></td>
+  <td>
+    <div class="t">Application Control is in Enforced mode</div>
+    <div class="d">1 node result(s) read; 1 not in &#39;Enforced&#39; mode.</div>
+    <div class="flags"><span class="flag">auto-remediable</span></div>
+  </td>
+  <td class="c-val">Enforced</td>
+  <td class="c-val">Audit</td>
+</tr><tr class="r-bad">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-secure-baseline" target="_blank" rel="noopener">AZL-DRTM-001</a></td>
+  <td><span class="sev sev-high">High</span></td>
+  <td><span class="status status-bad">Non-compliant</span></td>
+  <td>
+    <div class="t">Dynamic Root of Trust for Measurement is enabled</div>
+    <div class="d">DRTM is disabled at scope &#39;Cluster&#39;.</div>
+    <div class="flags"><span class="flag">auto-remediable</span><span class="flag">reboot</span></div>
+  </td>
+  <td class="c-val">enabled</td>
+  <td class="c-val">disabled</td>
+</tr><tr class="r-bad">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-syslog-forwarding" target="_blank" rel="noopener">AZL-LOG-002</a></td>
+  <td><span class="sev sev-high">High</span></td>
+  <td><span class="status status-bad">Non-compliant</span></td>
+  <td>
+    <div class="t">Syslog forwarding uses TCP with TLS encryption</div>
+    <div class="d">Findings: server certificate validation skipped.</div>
+    
+  </td>
+  <td class="c-val">TCP + TLS</td>
+  <td class="c-val">TCP, TLS</td>
+</tr><tr class="r-bad">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-secure-baseline" target="_blank" rel="noopener">AZL-PWD-001</a></td>
+  <td><span class="sev sev-high">High</span></td>
+  <td><span class="status status-bad">Non-compliant</span></td>
+  <td>
+    <div class="t">Minimum password length meets the baseline</div>
+    <div class="d"></div>
+    <div class="flags"><span class="flag">auto-remediable</span></div>
+  </td>
+  <td class="c-val">&gt;= 14</td>
+  <td class="c-val">7</td>
+</tr><tr class="r-bad">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/concepts/security-features" target="_blank" rel="noopener">AZL-ACC-001</a></td>
+  <td><span class="sev sev-medium">Medium</span></td>
+  <td><span class="status status-bad">Non-compliant</span></td>
+  <td>
+    <div class="t">The well-known RID 500 administrator account is disabled</div>
+    <div class="d">Disabling a built-in administrator is deliberately not automated here. Create a replacement administrative account, verify you can sign in with it and that lifecycle operations still work, then disable this one.</div>
+    
+  </td>
+  <td class="c-val">RID 500 disabled</td>
+  <td class="c-val">ASBuiltInAdmin is enabled</td>
+</tr><tr class="r-bad">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/concepts/security-features" target="_blank" rel="noopener">AZL-AV-002</a></td>
+  <td><span class="sev sev-medium">Medium</span></td>
+  <td><span class="status status-bad">Non-compliant</span></td>
+  <td>
+    <div class="t">Defender signatures are current</div>
+    <div class="d"></div>
+    
+  </td>
+  <td class="c-val">age &lt;= 3 days</td>
+  <td class="c-val">9 days</td>
+</tr><tr class="r-bad">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-syslog-forwarding" target="_blank" rel="noopener">AZL-LOG-003</a></td>
+  <td><span class="sev sev-medium">Medium</span></td>
+  <td><span class="status status-bad">Non-compliant</span></td>
+  <td>
+    <div class="t">Syslog forwarding uses mutual TLS authentication</div>
+    <div class="d">Findings: server certificate validation skipped; no client certificate thumbprint.</div>
+    
+  </td>
+  <td class="c-val">TCP + TLS + client certificate</td>
+  <td class="c-val">TCP, TLS</td>
+</tr><tr class="r-bad">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-secure-baseline" target="_blank" rel="noopener">AZL-SMB-002</a></td>
+  <td><span class="sev sev-medium">Medium</span></td>
+  <td><span class="status status-bad">Non-compliant</span></td>
+  <td>
+    <div class="t">SMB encryption is enabled for in-cluster traffic</div>
+    <div class="d">SMBClusterEncryption is disabled at scope &#39;Cluster&#39;.</div>
+    <div class="flags"><span class="flag">auto-remediable</span></div>
+  </td>
+  <td class="c-val">enabled</td>
+  <td class="c-val">disabled</td>
+</tr><tr class="r-bad">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-wdac" target="_blank" rel="noopener">AZL-WDAC-002</a></td>
+  <td><span class="sev sev-medium">Medium</span></td>
+  <td><span class="status status-bad">Non-compliant</span></td>
+  <td>
+    <div class="t">Every WDAC supplemental policy is on the approved list</div>
+    <div class="d">Unapproved: LegacyBackupAgent. Document these or remove them.</div>
+    
+  </td>
+  <td class="c-val">approved: none</td>
+  <td class="c-val">1 supplemental polic(y/ies) present</td>
+</tr><tr class="r-bad">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-secure-baseline" target="_blank" rel="noopener">AZL-BAN-001</a></td>
+  <td><span class="sev sev-low">Low</span></td>
+  <td><span class="status status-bad">Non-compliant</span></td>
+  <td>
+    <div class="t">An interactive logon legal notice is configured</div>
+    <div class="d">Neither LegalNoticeCaption nor LegalNoticeText is present.</div>
+    <div class="flags"><span class="flag">auto-remediable</span></div>
+  </td>
+  <td class="c-val">Caption and text set</td>
+  <td class="c-val">neither set</td>
+</tr><tr class="r-unknown">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/update/update-via-powershell-23h2" target="_blank" rel="noopener">AZL-UPD-001</a></td>
+  <td><span class="sev sev-high">High</span></td>
+  <td><span class="status status-unknown">Unknown</span></td>
+  <td>
+    <div class="t">The solution update environment is healthy</div>
+    <div class="d">The cmdlet Get-SolutionUpdateEnvironment is not available in this session.</div>
+    
+  </td>
+  <td class="c-val">HealthState = Success</td>
+  <td class="c-val">not set</td>
+</tr><tr class="r-ok">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-bitlocker" target="_blank" rel="noopener">AZL-BL-001</a></td>
+  <td><span class="sev sev-critical">Critical</span></td>
+  <td><span class="status status-ok">Compliant</span></td>
+  <td>
+    <div class="t">Every boot volume is BitLocker encrypted</div>
+    <div class="d">All returned volumes report protection on.</div>
+    <div class="flags"><span class="flag">auto-remediable</span><span class="flag">maintenance window</span></div>
+  </td>
+  <td class="c-val">All volumes protected</td>
+  <td class="c-val">1/1 protected</td>
+</tr><tr class="r-ok">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-secure-baseline" target="_blank" rel="noopener">AZL-DRIFT-001</a></td>
+  <td><span class="sev sev-critical">Critical</span></td>
+  <td><span class="status status-ok">Compliant</span></td>
+  <td>
+    <div class="t">Security baseline drift control is enabled</div>
+    <div class="d">DriftControl is enabled at scope &#39;Cluster&#39;.</div>
+    <div class="flags"><span class="flag">auto-remediable</span></div>
+  </td>
+  <td class="c-val">enabled</td>
+  <td class="c-val">enabled</td>
+</tr><tr class="r-ok">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/concepts/security-features" target="_blank" rel="noopener">AZL-HW-001</a></td>
+  <td><span class="sev sev-critical">Critical</span></td>
+  <td><span class="status status-ok">Compliant</span></td>
+  <td>
+    <div class="t">A TPM 2.0 is present, enabled and owned</div>
+    <div class="d">A TPM that is present but not ready usually means it needs to be cleared and re-owned in firmware.</div>
+    
+  </td>
+  <td class="c-val">TPM present, ready</td>
+  <td class="c-val">present=True, ready=True</td>
+</tr><tr class="r-ok">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/concepts/security-features" target="_blank" rel="noopener">AZL-HW-002</a></td>
+  <td><span class="sev sev-critical">Critical</span></td>
+  <td><span class="status status-ok">Compliant</span></td>
+  <td>
+    <div class="t">UEFI Secure Boot is enabled</div>
+    <div class="d">Secure Boot is configured in firmware and cannot be enabled from PowerShell.</div>
+    
+  </td>
+  <td class="c-val">enabled</td>
+  <td class="c-val">enabled</td>
+</tr><tr class="r-ok">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-secure-baseline" target="_blank" rel="noopener">AZL-VBS-001</a></td>
+  <td><span class="sev sev-critical">Critical</span></td>
+  <td><span class="status status-ok">Compliant</span></td>
+  <td>
+    <div class="t">Virtualization-Based Security is enabled</div>
+    <div class="d">VBS is enabled at scope &#39;Cluster&#39;.</div>
+    <div class="flags"><span class="flag">auto-remediable</span><span class="flag">reboot</span></div>
+  </td>
+  <td class="c-val">enabled</td>
+  <td class="c-val">enabled</td>
+</tr><tr class="r-ok">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/concepts/security-features" target="_blank" rel="noopener">AZL-ACC-002</a></td>
+  <td><span class="sev sev-high">High</span></td>
+  <td><span class="status status-ok">Compliant</span></td>
+  <td>
+    <div class="t">The well-known RID 501 guest account is disabled</div>
+    <div class="d">ASBuiltInGuest (RID 501) is in the expected state.</div>
+    
+  </td>
+  <td class="c-val">RID 501 disabled</td>
+  <td class="c-val">ASBuiltInGuest is disabled</td>
+</tr><tr class="r-ok">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/concepts/security-features" target="_blank" rel="noopener">AZL-AV-001</a></td>
+  <td><span class="sev sev-high">High</span></td>
+  <td><span class="status status-ok">Compliant</span></td>
+  <td>
+    <div class="t">Microsoft Defender real-time protection is active</div>
+    <div class="d">If a non-Microsoft antivirus is in use instead, confirm it is ISV-validated for Azure Local and that the documented exclusion paths are configured.</div>
+    
+  </td>
+  <td class="c-val">enabled</td>
+  <td class="c-val">realTime=True, service=True</td>
+</tr><tr class="r-ok">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-bitlocker" target="_blank" rel="noopener">AZL-BL-003</a></td>
+  <td><span class="sev sev-high">High</span></td>
+  <td><span class="status status-ok">Compliant</span></td>
+  <td>
+    <div class="t">BitLocker recovery keys are retrievable for every node</div>
+    <div class="d">Keys are retrievable. Export them to a location that survives the loss of this cluster and the loss of the directory, then verify the restore path on a schedule.</div>
+    
+  </td>
+  <td class="c-val">At least one recovery key per node</td>
+  <td class="c-val">2 key(s) across 2 node(s)</td>
+</tr><tr class="r-ok">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-secure-baseline" target="_blank" rel="noopener">AZL-CG-001</a></td>
+  <td><span class="sev sev-high">High</span></td>
+  <td><span class="status status-ok">Compliant</span></td>
+  <td>
+    <div class="t">Credential Guard is enabled</div>
+    <div class="d">CredentialGuard is enabled at scope &#39;Cluster&#39;.</div>
+    <div class="flags"><span class="flag">auto-remediable</span><span class="flag">reboot</span></div>
+  </td>
+  <td class="c-val">enabled</td>
+  <td class="c-val">enabled</td>
+</tr><tr class="r-ok">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-secure-baseline" target="_blank" rel="noopener">AZL-HVCI-001</a></td>
+  <td><span class="sev sev-high">High</span></td>
+  <td><span class="status status-ok">Compliant</span></td>
+  <td>
+    <div class="t">Hypervisor-protected code integrity is enabled</div>
+    <div class="d">HVCI is enabled at scope &#39;Cluster&#39;.</div>
+    <div class="flags"><span class="flag">auto-remediable</span><span class="flag">reboot</span></div>
+  </td>
+  <td class="c-val">enabled</td>
+  <td class="c-val">enabled</td>
+</tr><tr class="r-ok">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-syslog-forwarding" target="_blank" rel="noopener">AZL-LOG-001</a></td>
+  <td><span class="sev sev-high">High</span></td>
+  <td><span class="status status-ok">Compliant</span></td>
+  <td>
+    <div class="t">Syslog forwarding to a SIEM is enabled</div>
+    <div class="d">Verify end to end once a quarter: generate a known event and confirm it reaches the SIEM. A forwarder pointed at a decommissioned collector reports as healthy.</div>
+    
+  </td>
+  <td class="c-val">Configured server</td>
+  <td class="c-val">siem.contoso.local</td>
+</tr><tr class="r-ok">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-secure-baseline" target="_blank" rel="noopener">AZL-SMB-001</a></td>
+  <td><span class="sev sev-high">High</span></td>
+  <td><span class="status status-ok">Compliant</span></td>
+  <td>
+    <div class="t">SMB signing is enabled for external traffic</div>
+    <div class="d">SMBSigning is enabled at scope &#39;Cluster&#39;.</div>
+    <div class="flags"><span class="flag">auto-remediable</span></div>
+  </td>
+  <td class="c-val">enabled</td>
+  <td class="c-val">enabled</td>
+</tr><tr class="r-ok">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/whats-new" target="_blank" rel="noopener">AZL-AV-003</a></td>
+  <td><span class="sev sev-medium">Medium</span></td>
+  <td><span class="status status-ok">Compliant</span></td>
+  <td>
+    <div class="t">Potentially unwanted application protection is enforced</div>
+    <div class="d">A value of 2 is audit mode: detections are logged but nothing is blocked.</div>
+    
+  </td>
+  <td class="c-val">Enabled (1)</td>
+  <td class="c-val">1</td>
+</tr><tr class="r-ok">
+  <td class="c-id"><a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/manage-secure-baseline" target="_blank" rel="noopener">AZL-SCM-001</a></td>
+  <td><span class="sev sev-medium">Medium</span></td>
+  <td><span class="status status-ok">Compliant</span></td>
+  <td>
+    <div class="t">Side channel mitigations are enabled</div>
+    <div class="d">SideChannelMitigation is enabled at scope &#39;Cluster&#39;.</div>
+    <div class="flags"><span class="flag">auto-remediable</span><span class="flag">reboot</span></div>
+  </td>
+  <td class="c-val">enabled</td>
+  <td class="c-val">enabled</td>
+</tr>
+    </tbody>
+  </table>
+
+  <footer>
+    Unknown results are controls whose state could not be read, usually a missing cmdlet, a CredSSP
+    refusal or an unreachable node. They are excluded from the compliance score rather than counted
+    as passes. Generated by AzLocalSecurityBaseline 1.0.0 on
+    .
+  </footer>
+</div>
+</body>
+</html>

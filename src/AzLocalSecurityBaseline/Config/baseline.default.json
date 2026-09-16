@@ -1,0 +1,85 @@
+{
+  "profile": "GetToTheCloud-Standard",
+  "version": "1.0.0",
+  "description": "Default desired state for an Azure Local system. Every control is enabled. Copy this file, keep only what you change, and pass it with -ConfigPath: values are merged over this default, so a site file of four lines is a complete configuration.",
+
+  "controls": {
+    "AZL-HW-001": { "enabled": true },
+    "AZL-HW-002": { "enabled": true },
+
+    "AZL-DRIFT-001": {
+      "enabled": true,
+      "parameters": { "desired": true }
+    },
+    "AZL-VBS-001": {
+      "enabled": true,
+      "parameters": { "desired": true }
+    },
+    "AZL-HVCI-001": {
+      "enabled": true,
+      "parameters": { "desired": true }
+    },
+    "AZL-CG-001": {
+      "enabled": true,
+      "parameters": { "desired": true }
+    },
+    "AZL-DRTM-001": {
+      "enabled": true,
+      "parameters": { "desired": true }
+    },
+    "AZL-SCM-001": {
+      "enabled": true,
+      "parameters": { "desired": true }
+    },
+    "AZL-SMB-001": {
+      "enabled": true,
+      "parameters": { "desired": true }
+    },
+    "AZL-SMB-002": {
+      "enabled": true,
+      "parameters": { "desired": true }
+    },
+
+    "AZL-WDAC-001": {
+      "enabled": true,
+      "parameters": { "desiredMode": "Enforced" }
+    },
+    "AZL-WDAC-002": {
+      "enabled": true,
+      "parameters": {
+        "approvedPolicies": []
+      }
+    },
+
+    "AZL-BL-001": { "enabled": true },
+    "AZL-BL-002": { "enabled": true },
+    "AZL-BL-003": { "enabled": true },
+
+    "AZL-AV-001": { "enabled": true },
+    "AZL-AV-002": {
+      "enabled": true,
+      "parameters": { "maxSignatureAgeDays": 3 }
+    },
+    "AZL-AV-003": { "enabled": true },
+
+    "AZL-LOG-001": { "enabled": true },
+    "AZL-LOG-002": { "enabled": true },
+    "AZL-LOG-003": { "enabled": true },
+
+    "AZL-ACC-001": { "enabled": true },
+    "AZL-ACC-002": { "enabled": true },
+    "AZL-PWD-001": {
+      "enabled": true,
+      "parameters": { "minimumLength": 14 }
+    },
+    "AZL-BAN-001": {
+      "enabled": true,
+      "parameters": {
+        "caption": "Authorised use only",
+        "text": "This system is restricted to authorised users. Activity on this system is logged and monitored. Disconnect immediately if you are not an authorised user."
+      }
+    },
+
+    "AZL-UPD-001": { "enabled": true }
+  }
+}
