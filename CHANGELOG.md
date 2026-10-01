@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-10-01
+
+### Added
+
+- `New-AzLocalSecurityRemoteTarget` for WinRM/PSSession and Azure Arc Run Command.
+- Remote execution for audit, state collection and guarded remediation.
+- Remote target, transport, execution id and evaluation status in results/reports.
+- Arc Run Command support for node-local scope with structured output blobs.
+
+### Changed
+
+- A run containing only `Unknown` results is reported as incomplete rather than compliant.
+- Documentation and examples now start from a management computer.
+
 ## [1.0.0] - 2026-09-15
 
 ### Added

@@ -19,6 +19,10 @@ function Get-AzLocalSecurityState {
             Local, Cluster or AllNodes. AllNodes needs CredSSP or a direct RDP
             session to a node.
 
+        .PARAMETER Target
+            Optional remote target created with New-AzLocalSecurityRemoteTarget.
+            The state is still collected on the Azure Local node.
+
         .EXAMPLE
             Get-AzLocalSecurityState -Scope Cluster |
                 ConvertTo-Json -Depth 8 |
@@ -31,8 +35,14 @@ function Get-AzLocalSecurityState {
     [OutputType([pscustomobject])]
     param(
         [ValidateSet('Local', 'Cluster', 'AllNodes')]
-        [string] $Scope = 'Local'
+        [string] $Scope = 'Local',
+
+        [psobject] $Target
     )
+
+    if ($Target) {
+        return Invoke-AzLocalRemoteOperation -Operation State -Target $Target -Scope $Scope
+    }
 
     Write-AzLocalLog -Message "Collecting raw security state at scope '$Scope'."
 
@@ -86,6 +96,7 @@ function Get-AzLocalSecurityState {
         TimestampUtc = (Get-Date).ToUniversalTime()
         ComputerName = $env:COMPUTERNAME
         Scope        = $Scope
+        ModuleVersion = $script:ModuleVersion
 
         Hardware = [pscustomobject]@{
             TpmPresent = if ($tpm.Ok) { [bool] $tpm.Value.TpmPresent } else { $null }

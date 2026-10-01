@@ -30,6 +30,10 @@ function Test-AzLocalSecurityBaseline {
             AllNodes evaluate the computed value across every node. Requires
                      CredSSP or a direct RDP session.
 
+        .PARAMETER Target
+            Optional remote target created with New-AzLocalSecurityRemoteTarget.
+            Without a target, the existing local execution behavior is retained.
+
         .PARAMETER ControlId
             Evaluate only these control IDs. Wildcards are supported.
 
@@ -41,7 +45,7 @@ function Test-AzLocalSecurityBaseline {
 
         .PARAMETER IncludeSkipped
             Emit a result for controls disabled in the configuration, rather than
-            omitting them.
+                omitting them.
 
         .EXAMPLE
             Test-AzLocalSecurityBaseline -Scope Cluster
@@ -77,10 +81,21 @@ function Test-AzLocalSecurityBaseline {
         [ValidateSet('Critical', 'High', 'Medium', 'Low')]
         [string[]] $Severity,
 
-        [switch] $IncludeSkipped
+        [switch] $IncludeSkipped,
+
+        [psobject] $Target
     )
 
     begin {
+        $remoteHandled = $false
+        if ($Target) {
+            $remoteHandled = $true
+            Invoke-AzLocalRemoteOperation -Operation Test -Target $Target -Scope $Scope `
+                -ConfigPath $ConfigPath -ControlId $ControlId -Category $Category `
+                -Severity $Severity -IncludeSkipped:$IncludeSkipped
+            return
+        }
+
         $config = Import-AzLocalBaselineConfig -Path $ConfigPath
         $runContext = Get-AzLocalRunContext -Config $config -Scope $Scope -ConfigPath $ConfigPath
 
@@ -88,6 +103,8 @@ function Test-AzLocalSecurityBaseline {
     }
 
     process {
+        if ($remoteHandled) { return }
+
         $controls = Get-AzLocalControlRegistry
 
         if ($ControlId) {
@@ -189,6 +206,7 @@ function New-AzLocalControlResult {
         ComputerName              = $RunContext.ComputerName
         Scope                     = $RunContext.Scope
         Profile                   = $RunContext.Profile
+        ModuleVersion             = $script:ModuleVersion
         TimestampUtc              = $RunContext.TimestampUtc
     }
 }

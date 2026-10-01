@@ -1,12 +1,12 @@
 @{
     RootModule            = 'AzLocalSecurityBaseline.psm1'
-    ModuleVersion         = '1.0.0'
+    ModuleVersion         = '1.1.0'
     GUID                  = 'b7f4c2e1-5a83-4d96-9c07-3e1f8a4b6d20'
     Author                = 'Alex ter Neuzen'
     CompanyName           = 'gettothe.cloud'
     Copyright             = '(c) Alex ter Neuzen. Licensed under the MIT License.'
 
-    Description           = 'Audits and optionally remediates the security baseline of an Azure Local system. Read-only by default: covers the hardware root of trust, drift-protected platform features, Application Control, BitLocker, Defender, syslog forwarding, account policy and lifecycle currency, and produces a self-contained HTML report with a JSON sidecar.'
+    Description           = 'Remote-first audit and optional remediation for the Azure Local security baseline. Read-only by default: covers the hardware root of trust, drift-protected platform features, Application Control, BitLocker, Defender, syslog forwarding, account policy and lifecycle currency, and produces a self-contained HTML report with a JSON sidecar.'
 
     PowerShellVersion     = '5.1'
     CompatiblePSEditions  = @('Desktop', 'Core')
@@ -16,6 +16,7 @@
         'Set-AzLocalSecurityBaseline'
         'Get-AzLocalSecurityState'
         'New-AzLocalSecurityReport'
+        'New-AzLocalSecurityRemoteTarget'
     )
     CmdletsToExport       = @()
     VariablesToExport     = @()
@@ -28,8 +29,11 @@
         'Private/Controls.ps1'
         'Private/Helpers.ps1'
         'Private/Interop.ps1'
+        'Private/Remote.ps1'
+        'Private/RemoteWorker.ps1'
         'Public/Get-AzLocalSecurityState.ps1'
         'Public/New-AzLocalSecurityReport.ps1'
+        'Public/New-AzLocalSecurityRemoteTarget.ps1'
         'Public/Set-AzLocalSecurityBaseline.ps1'
         'Public/Test-AzLocalSecurityBaseline.ps1'
     )
@@ -40,6 +44,11 @@
             LicenseUri   = 'https://github.com/GetToThe-Cloud/azure-local-security-baseline/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/GetToThe-Cloud/azure-local-security-baseline'
             ReleaseNotes = @'
+1.1.0
+  - Added WinRM and Azure Arc Run Command remote execution targets.
+  - Added remote metadata and incomplete-evaluation reporting.
+  - Arc Run Command is intentionally limited to Local scope.
+
 1.0.0
   - Initial release.
   - 26 controls across hardware root of trust, platform security features,

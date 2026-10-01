@@ -27,6 +27,7 @@ $ErrorActionPreference = 'Stop'
 
 $script:Passed = 0
 $script:Failed = 0
+$script:SmokeComputerName = 'NODE01'
 
 function Test-Case {
     param(
@@ -165,9 +166,9 @@ try {
     Write-Host ''
     Write-Host 'Module surface' -ForegroundColor Cyan
 
-    Test-Case 'exports exactly four functions' {
+    Test-Case 'exports the local functions and remote target factory' {
         $exported = ($module.ExportedFunctions.Keys | Sort-Object) -join ','
-        Assert-Equal 'Get-AzLocalSecurityState,New-AzLocalSecurityReport,Set-AzLocalSecurityBaseline,Test-AzLocalSecurityBaseline' $exported
+        Assert-Equal 'Get-AzLocalSecurityState,New-AzLocalSecurityRemoteTarget,New-AzLocalSecurityReport,Set-AzLocalSecurityBaseline,Test-AzLocalSecurityBaseline' $exported
     }
 
     Test-Case 'manifest FunctionsToExport matches the module' {
@@ -178,6 +179,88 @@ try {
     Test-Case 'only the Set function supports -WhatIf' {
         Assert-True (-not (Get-Command Test-AzLocalSecurityBaseline).Parameters.ContainsKey('WhatIf')) 'Test should be read-only'
         Assert-True ((Get-Command Set-AzLocalSecurityBaseline).Parameters.ContainsKey('WhatIf')) 'Set should support WhatIf'
+    }
+
+    Write-Host ''
+    Write-Host 'Remote execution' -ForegroundColor Cyan
+
+    Test-Case 'creates a WinRM target with the expected default port' {
+        $target = New-AzLocalSecurityRemoteTarget -Transport WinRM -ComputerName $script:SmokeComputerName
+        Assert-Equal 'WinRM' $target.Transport
+        Assert-Equal 5985 $target.Port
+        Assert-Equal 'Negotiate' $target.Authentication
+    }
+
+    Test-Case 'creates an Arc Run Command target without requiring inbound remoting' {
+        $target = New-AzLocalSecurityRemoteTarget -Transport ArcRunCommand `
+            -SubscriptionId sub -ResourceGroupName rg -MachineName NODE01 -Location westeurope `
+            -OutputBlobUri 'https://storage.example/out?sig=secret'
+        Assert-Equal 'ArcRunCommand' $target.Transport
+        Assert-Equal 'NODE01' $target.MachineName
+        $serialized = $target | ConvertTo-Json -Depth 6
+        Assert-Match 'OutputBlobUri' $serialized
+        Assert-True ($serialized -notmatch 'sig=secret') 'SAS material must not be serialised'
+    }
+
+    Test-Case 'remote audit uses the WinRM transport and stamps metadata' {
+        $target = New-AzLocalSecurityRemoteTarget -Transport WinRM -ComputerName $script:SmokeComputerName
+        Set-Stub {
+            function script:Invoke-AzLocalWinRM { param($Target, $RequestJson)
+                $script:LastRemoteRequest = $RequestJson
+                return (@{
+                    Ok = $true
+                    Results = @([pscustomobject]@{
+                        Id = 'AZL-TEST-001'; Title = 'Remote test'; Category = 'Test'; Severity = 'High'
+                        Status = 'Compliant'; Expected = $true; Actual = $true; Detail = 'remote'
+                        Rationale = 'test'; Reference = 'https://learn.microsoft.com/en-us/'
+                        Remediable = $false; RequiresReboot = $false; RequiresMaintenanceWindow = $false
+                        Evidence = @{}; ComputerName = 'NODE01'; Scope = 'Local'; Profile = 'Test';
+                        TimestampUtc = (Get-Date).ToUniversalTime()
+                    })
+                } | ConvertTo-Json -Depth 10 -Compress)
+            }
+        }
+
+        $results = @(Test-AzLocalSecurityBaseline -Target $target -Scope Local -ControlId 'AZL-TEST-*')
+        Assert-Equal 1 $results.Count
+        Assert-Equal 'WinRM' $results[0].Transport
+        Assert-Equal 'NODE01' $results[0].TargetComputerName
+        Assert-True ($results[0].ExecutionId -match '^[0-9a-f]{32}$')
+    }
+
+    Test-Case 'remote audit reports an unreachable target as Unknown' {
+        $target = New-AzLocalSecurityRemoteTarget -Transport WinRM -ComputerName $script:SmokeComputerName
+        Set-Stub { function script:Invoke-AzLocalWinRM { throw 'connection refused' } }
+        $results = @(Test-AzLocalSecurityBaseline -Target $target -Scope Local)
+        Assert-True (@($results | Where-Object Status -eq 'Unknown').Count -gt 20)
+        Assert-True (@($results | Where-Object Detail -match 'connection refused').Count -gt 20)
+    }
+
+    Test-Case 'Arc Run Command rejects cluster scope before execution' {
+        $target = New-AzLocalSecurityRemoteTarget -Transport ArcRunCommand `
+            -SubscriptionId sub -ResourceGroupName rg -MachineName NODE01 -Location westeurope
+        $threw = $false
+        try { Test-AzLocalSecurityBaseline -Target $target -Scope Cluster | Out-Null }
+        catch { $threw = $true; Assert-Match 'supports only -Scope Local' $_.Exception.Message }
+        Assert-True $threw
+    }
+
+    Test-Case 'remote WhatIf is passed to the transport without secrets' {
+        $target = New-AzLocalSecurityRemoteTarget -Transport WinRM -ComputerName $script:SmokeComputerName
+        Set-Stub {
+            function script:Invoke-AzLocalWinRM { param($Target, $RequestJson)
+                $script:LastRemoteRequest = $RequestJson
+                return (@{ Ok = $true; Results = @() } | ConvertTo-Json -Depth 6 -Compress)
+            }
+        }
+        $unsafeResult = [pscustomobject]@{
+            Id = 'AZL-WDAC-001'; Status = 'NonCompliant'; Expected = 'Enforced'; Actual = 'Audit'
+            Detail = 'test'; RecoveryKey = 'secret'; Evidence = @{ RecoveryKey = 'secret' }
+        }
+        Set-AzLocalSecurityBaseline -Target $target -Scope Local -ControlId 'AZL-WDAC-001' -Result $unsafeResult -WhatIf | Out-Null
+        $request = & $module { $script:LastRemoteRequest }
+        Assert-Match '"WhatIf":true' $request
+        Assert-True ($request -notmatch 'NODE01|Credential|sig=|secret')
     }
 
     Write-Host ''

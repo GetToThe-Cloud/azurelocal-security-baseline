@@ -11,6 +11,7 @@
 
 BeforeAll {
     $script:ModulePath = Join-Path $PSScriptRoot '../src/AzLocalSecurityBaseline/AzLocalSecurityBaseline.psd1'
+    $script:TestComputerName = 'NODE01'
     Import-Module $script:ModulePath -Force
 
     # Probe result shapes, matching what Invoke-AzLocalProbe returns.
@@ -98,10 +99,11 @@ BeforeAll {
 }
 
 Describe 'Module surface' {
-    It 'exports exactly the four supported functions' {
+    It 'exports the local functions and remote target factory' {
         $exported = (Get-Module AzLocalSecurityBaseline).ExportedFunctions.Keys | Sort-Object
         $exported | Should -Be @(
             'Get-AzLocalSecurityState'
+            'New-AzLocalSecurityRemoteTarget'
             'New-AzLocalSecurityReport'
             'Set-AzLocalSecurityBaseline'
             'Test-AzLocalSecurityBaseline'
@@ -117,6 +119,181 @@ Describe 'Module surface' {
     It 'only Set-AzLocalSecurityBaseline supports ShouldProcess' {
         (Get-Command Test-AzLocalSecurityBaseline).Parameters.Keys | Should -Not -Contain 'WhatIf'
         (Get-Command Set-AzLocalSecurityBaseline).Parameters.Keys | Should -Contain 'WhatIf'
+    }
+}
+
+Describe 'Remote execution' {
+    It 'creates a WinRM target with a management-computer default' {
+        $target = New-AzLocalSecurityRemoteTarget -Transport WinRM -ComputerName $script:TestComputerName
+        $target.Transport | Should -Be 'WinRM'
+        $target.Port | Should -Be 5985
+        $target.Authentication | Should -Be 'Negotiate'
+    }
+
+    It 'accepts an already-open PSSession for WinRM reuse' {
+        $session = [pscustomobject]@{ State = 'Opened'; ComputerName = $script:TestComputerName }
+        $target = New-AzLocalSecurityRemoteTarget -Transport WinRM -Session $session
+        $target.Session | Should -Be $session
+        $target.ComputerName | Should -BeNullOrEmpty
+    }
+
+    It 'requires delegation before allowing cluster scope over WinRM' {
+        $target = New-AzLocalSecurityRemoteTarget -Transport WinRM -ComputerName $script:TestComputerName
+        { Test-AzLocalSecurityBaseline -Target $target -Scope Cluster } |
+            Should -Throw '*requires a CredSSP WinRM target or an existing delegated PSSession*'
+    }
+
+    It 'returns remote audit results with target metadata' {
+        InModuleScope AzLocalSecurityBaseline {
+            Mock Invoke-AzLocalWinRM {
+                (@{
+                    Ok = $true
+                    Results = @([pscustomobject]@{
+                        Id = 'AZL-TEST-001'; Title = 'Remote test'; Category = 'Test'; Severity = 'High'
+                        Status = 'Compliant'; Expected = $true; Actual = $true; Detail = 'remote'
+                        Rationale = 'test'; Reference = 'https://learn.microsoft.com/en-us/'
+                        Remediable = $false; RequiresReboot = $false; RequiresMaintenanceWindow = $false
+                        Evidence = @{}; ComputerName = 'NODE01'; Scope = 'Local'; Profile = 'Test'
+                        TimestampUtc = (Get-Date).ToUniversalTime()
+                    })
+                } | ConvertTo-Json -Depth 10 -Compress)
+            }
+        }
+
+        $target = New-AzLocalSecurityRemoteTarget -Transport WinRM -ComputerName $script:TestComputerName
+        $result = @(Test-AzLocalSecurityBaseline -Target $target -Scope Local -ControlId AZL-TEST-001)
+        $result.Count | Should -Be 1
+        $result[0].Transport | Should -Be 'WinRM'
+        $result[0].TargetComputerName | Should -Be 'NODE01'
+        $result[0].ModuleVersion | Should -Be '1.1.0'
+        $result[0].ExecutionId | Should -Match '^[0-9a-f]{32}$'
+    }
+
+    It 'turns a remote transport failure into Unknown results' {
+        InModuleScope AzLocalSecurityBaseline {
+            Mock Invoke-AzLocalWinRM { throw 'connection refused' }
+        }
+
+        $target = New-AzLocalSecurityRemoteTarget -Transport WinRM -ComputerName $script:TestComputerName
+        $results = @(Test-AzLocalSecurityBaseline -Target $target -Scope Local)
+        @($results | Where-Object Status -eq 'Unknown').Count | Should -BeGreaterThan 20
+        @($results | Where-Object Detail -match 'connection refused').Count | Should -BeGreaterThan 20
+    }
+
+    It 'does not score a fully failed remote run as compliant' {
+        InModuleScope AzLocalSecurityBaseline {
+            Mock Invoke-AzLocalWinRM { throw 'connection refused' }
+        }
+
+        $target = New-AzLocalSecurityRemoteTarget -Transport WinRM -ComputerName $script:TestComputerName
+        $results = @(Test-AzLocalSecurityBaseline -Target $target -Scope Local)
+        $summary = $results | New-AzLocalSecurityReport -Path (Join-Path $TestDrive 'remote-failure.html') -PassThru
+
+        $summary.EvaluationStatus | Should -Be 'Incomplete'
+        $summary.ComplianceScore | Should -BeNullOrEmpty
+        $summary.Unknown | Should -BeGreaterThan 20
+    }
+
+    It 'rejects Arc Run Command for cluster scope' {
+        $target = New-AzLocalSecurityRemoteTarget -Transport ArcRunCommand `
+            -SubscriptionId sub -ResourceGroupName rg -MachineName NODE01 -Location westeurope
+        { Test-AzLocalSecurityBaseline -Target $target -Scope Cluster } |
+            Should -Throw '*supports only -Scope Local*'
+    }
+
+    It 'submits an Arc payload with output and error blobs without serializing the target' {
+        InModuleScope AzLocalSecurityBaseline {
+            function New-AzConnectedMachineRunCommand {
+                param(
+                    $ResourceGroupName, $MachineName, $Location, $RunCommandName,
+                    $SubscriptionId, $SourceScript, $OutputBlobUri, $ErrorBlobUri,
+                    $TimeoutInSecond, [switch] $AsyncExecution
+                )
+            }
+            function Get-AzConnectedMachineRunCommand {
+                param($ResourceGroupName, $MachineName, $RunCommandName, $SubscriptionId)
+            }
+            function Remove-AzConnectedMachineRunCommand {
+                param($ResourceGroupName, $MachineName, $RunCommandName, $SubscriptionId, [switch] $Force)
+            }
+
+            $script:ArcSourceScript = $null
+            $script:ArcOutputBlob = $null
+            $script:ArcErrorBlob = $null
+
+            Mock Get-Command -ParameterFilter { $Name -in @(
+                    'New-AzConnectedMachineRunCommand',
+                    'Get-AzConnectedMachineRunCommand',
+                    'Remove-AzConnectedMachineRunCommand'
+                ) } {
+                [pscustomobject]@{ Parameters = @{
+                    SubscriptionId = $true
+                    SourceScript = $true
+                    OutputBlobUri = $true
+                    ErrorBlobUri = $true
+                    TimeoutInSecond = $true
+                    AsyncExecution = $true
+                    RunAsUser = $true
+                    Force = $true
+                } }
+            }
+            Mock New-AzConnectedMachineRunCommand {
+                $script:ArcSourceScript = $SourceScript
+                $script:ArcOutputBlob = $OutputBlobUri
+                $script:ArcErrorBlob = $ErrorBlobUri
+            }
+            Mock Get-AzConnectedMachineRunCommand {
+                [pscustomobject]@{
+                    InstanceViewExecutionState = 'Succeeded'
+                    InstanceViewOutput = (@{
+                        Ok = $true
+                        Results = @([pscustomobject]@{
+                            Id = 'AZL-TEST-001'; Status = 'Compliant'; ComputerName = 'NODE01'; Scope = 'Local'; Profile = 'Test'
+                        })
+                    } | ConvertTo-Json -Depth 10 -Compress)
+                }
+            }
+            Mock Remove-AzConnectedMachineRunCommand { }
+        }
+
+        $target = New-AzLocalSecurityRemoteTarget -Transport ArcRunCommand `
+            -SubscriptionId sub -ResourceGroupName rg -MachineName NODE01 -Location westeurope `
+            -OutputBlobUri 'https://storage.example/output?sas=secret' `
+            -ErrorBlobUri 'https://storage.example/error?sas=secret'
+        $result = @(Test-AzLocalSecurityBaseline -Target $target -Scope Local)
+
+        $result[0].Transport | Should -Be 'ArcRunCommand'
+        InModuleScope AzLocalSecurityBaseline {
+            $script:ArcOutputBlob | Should -Match 'storage.example/output'
+            $script:ArcErrorBlob | Should -Match 'storage.example/error'
+            $script:ArcSourceScript | Should -Match 'Invoke-AzLocalRemoteWorker'
+            $script:ArcSourceScript | Should -Not -Match 'sas=secret'
+            Should -Invoke Remove-AzConnectedMachineRunCommand -Times 1
+        }
+    }
+
+    It 'turns an Arc execution error into Unknown results' {
+        InModuleScope AzLocalSecurityBaseline {
+            Mock Invoke-AzLocalArcRunCommand { throw 'Arc Run Command failed: agent unavailable' }
+        }
+
+        $target = New-AzLocalSecurityRemoteTarget -Transport ArcRunCommand `
+            -SubscriptionId sub -ResourceGroupName rg -MachineName NODE01 -Location westeurope
+        $results = @(Test-AzLocalSecurityBaseline -Target $target -Scope Local)
+        @($results | Where-Object Status -eq 'Unknown').Count | Should -BeGreaterThan 20
+        @($results | Where-Object Detail -match 'agent unavailable').Count | Should -BeGreaterThan 20
+    }
+
+    It 'passes WhatIf to the remote remediation worker' {
+        InModuleScope AzLocalSecurityBaseline {
+            Mock Invoke-AzLocalWinRM { (@{ Ok = $true; Results = @() } | ConvertTo-Json -Depth 6 -Compress) }
+        }
+
+        $target = New-AzLocalSecurityRemoteTarget -Transport WinRM -ComputerName $script:TestComputerName
+        Set-AzLocalSecurityBaseline -Target $target -Scope Local -ControlId AZL-WDAC-001 -WhatIf | Should -BeNullOrEmpty
+        InModuleScope AzLocalSecurityBaseline {
+            Should -Invoke Invoke-AzLocalWinRM -Times 1
+        }
     }
 }
 

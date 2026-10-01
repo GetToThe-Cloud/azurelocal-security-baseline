@@ -28,8 +28,13 @@ function Set-AzLocalSecurityBaseline {
             Path to a JSON configuration file, merged over the shipped default.
 
         .PARAMETER Scope
-            Local or Cluster. Cluster-wide writes need CredSSP or a direct RDP
-            session to a node.
+            Local, Cluster or AllNodes. Cluster-wide writes need CredSSP or a
+            direct delegated session to a node.
+
+        .PARAMETER Target
+            Optional remote target created with New-AzLocalSecurityRemoteTarget.
+            WinRM supports all scopes when delegation is available; Arc Run
+            Command is limited to Local.
 
         .PARAMETER ControlId
             Remediate only these control IDs. Wildcards are supported.
@@ -83,12 +88,17 @@ function Set-AzLocalSecurityBaseline {
         [switch] $AllowMaintenanceWindow,
 
         [Parameter(ValueFromPipeline)]
-        [psobject[]] $Result
+        [psobject[]] $Result,
+
+        [psobject] $Target
     )
 
     begin {
-        $config = Import-AzLocalBaselineConfig -Path $ConfigPath
-        $runContext = Get-AzLocalRunContext -Config $config -Scope $Scope -ConfigPath $ConfigPath
+        $remoteMode = $null -ne $Target
+        if (-not $remoteMode) {
+            $config = Import-AzLocalBaselineConfig -Path $ConfigPath
+            $runContext = Get-AzLocalRunContext -Config $config -Scope $Scope -ConfigPath $ConfigPath
+        }
         $collected = New-Object System.Collections.Generic.List[object]
         $rebootPending = New-Object System.Collections.Generic.List[string]
     }
@@ -101,6 +111,30 @@ function Set-AzLocalSecurityBaseline {
 
     end {
         $audit = $collected.ToArray()
+
+        if ($remoteMode) {
+            $explicitConfirmFalse = $PSBoundParameters.ContainsKey('Confirm') -and -not $Confirm
+            if (-not $WhatIfPreference -and -not $explicitConfirmFalse) {
+                $remoteTargetName = Get-AzLocalRemoteTargetLabel -Target $Target
+                if (-not $PSCmdlet.ShouldProcess($remoteTargetName, 'Run remote Azure Local security remediation')) {
+                    return
+                }
+            }
+
+            $remoteSplat = @{
+                Operation              = 'Set'
+                Target                 = $Target
+                Scope                  = $Scope
+                ConfigPath             = $ConfigPath
+                ControlId              = $ControlId
+                AllowReboot            = $AllowReboot
+                AllowMaintenanceWindow = $AllowMaintenanceWindow
+                Simulate               = $WhatIfPreference
+                Result                 = $audit
+            }
+            Invoke-AzLocalRemoteOperation @remoteSplat
+            return
+        }
 
         if ($audit.Count -eq 0) {
             Write-AzLocalLog -Message 'No audit results supplied. Running an audit first.'
@@ -228,6 +262,7 @@ function New-AzLocalRemediationResult {
         RequiresReboot = $Control.RequiresReboot
         ComputerName   = $RunContext.ComputerName
         Scope          = $RunContext.Scope
+        ModuleVersion  = $script:ModuleVersion
         TimestampUtc   = (Get-Date).ToUniversalTime()
     }
 }

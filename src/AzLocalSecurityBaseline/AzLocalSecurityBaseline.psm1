@@ -42,4 +42,5 @@ Export-ModuleMember -Function @(
     'Set-AzLocalSecurityBaseline'
     'Get-AzLocalSecurityState'
     'New-AzLocalSecurityReport'
+    'New-AzLocalSecurityRemoteTarget'
 )

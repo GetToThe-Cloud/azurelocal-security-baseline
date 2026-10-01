@@ -22,6 +22,28 @@ Test-AzLocalSecurityBaseline -Scope Cluster |
 Set-AzLocalSecurityBaseline -Scope Cluster -WhatIf
 ```
 
+The module is remote-first. Install it on a management computer and choose a
+target for each run; the Azure Local cmdlets still execute on the node, but an
+operator does not need to open an interactive session on that node.
+
+```powershell
+$target = New-AzLocalSecurityRemoteTarget -Transport WinRM `
+    -ComputerName azl-node01 -Credential (Get-Credential)
+
+$results = Test-AzLocalSecurityBaseline -Target $target -Scope Local
+$results | New-AzLocalSecurityReport -Path C:\Reports\azurelocal.html
+```
+
+For cluster-wide values, create a delegated target explicitly:
+
+```powershell
+$target = New-AzLocalSecurityRemoteTarget -Transport WinRM `
+    -ComputerName azl-node01 -Authentication CredSSP `
+    -Credential (Get-Credential)
+
+Test-AzLocalSecurityBaseline -Target $target -Scope AllNodes
+```
+
 ## What it checks
 
 26 controls across eight categories, each one pinned to a Microsoft Learn reference and each one carrying the reason it matters, so a report reads as an argument rather than a list of settings.
@@ -53,14 +75,50 @@ Set-AzLocalSecurityBaseline -Scope Cluster -WhatIf
 
 ## Installing
 
-Requires Windows PowerShell 5.1 or PowerShell 7, running on an Azure Local node or a management session with the Azure Local cmdlets available.
+Requires Windows PowerShell 5.1 or PowerShell 7 on the management computer. The
+Azure Local cmdlets must be available on the execution node; they do not need to
+be installed on the management computer when a remote target is used.
 
 ```powershell
 git clone https://github.com/GetToThe-Cloud/azure-local-security-baseline.git
 Import-Module ./azure-local-security-baseline/src/AzLocalSecurityBaseline
 ```
 
-Cluster-wide scopes (`-Scope Cluster` and `-Scope AllNodes`) need CredSSP or a direct RDP session to a node, which is a constraint of the underlying Azure Local cmdlets rather than of this module. `-Scope Local` works from a plain remote session.
+### Remote scope matrix
+
+| Transport | Local | Cluster | AllNodes | Remediation |
+|---|---:|---:|---:|---:|
+| Local module run | Yes | Yes | Yes | Yes |
+| WinRM/PSSession | Yes | Yes, with CredSSP/delegation | Yes, with CredSSP/delegation | Local/Cluster, with existing safety gates |
+| Azure Arc Run Command | Yes | No | No | Local only |
+
+`Cluster` and `AllNodes` are restrictions of the Azure Local cmdlets. A normal
+remote PowerShell session is sufficient for `Local`; cluster-wide operations
+need CredSSP or an already delegated PSSession. Arc Run Command intentionally
+rejects those scopes instead of reporting a partial result as a successful
+cluster audit.
+
+Azure Arc Run Command is a preview feature. The Connected Machine agent must
+support Run Command, the caller needs permission to write
+`Microsoft.HybridCompute/machines/runCommands`, and the node needs outbound
+connectivity to Azure. Use a unique `OutputBlobUri` for full structured output;
+the command status stream is limited and can truncate large reports.
+SAS values are held as secure strings in the target and are not included in the
+remote request, result objects or reports. Recovery key material is summarized
+only and is never sent through the remote executor.
+
+```powershell
+$target = New-AzLocalSecurityRemoteTarget -Transport ArcRunCommand `
+    -SubscriptionId <subscription-id> `
+    -ResourceGroupName rg-azurelocal `
+    -MachineName azl-node01 `
+    -Location westeurope `
+    -OutputBlobUri $outputSasUri `
+    -ErrorBlobUri $errorSasUri
+
+Test-AzLocalSecurityBaseline -Target $target -Scope Local |
+    New-AzLocalSecurityReport -Path C:\Reports\azl-node01.html
+```
 
 ## Configuring
 
@@ -85,7 +143,7 @@ Disabling a control is a decision, not a fix. The shipped default `baseline.defa
 
 ## Reporting
 
-`New-AzLocalSecurityReport` writes a self-contained HTML file with no external dependencies, so it renders years later on a machine with no internet access, and a JSON sidecar beside it for a SIEM or for diffing between runs.
+`New-AzLocalSecurityReport` writes a self-contained HTML file with no external dependencies, so it renders years later on a machine with no internet access, and a JSON sidecar beside it for a SIEM or for diffing between runs. Remote results include the transport, target, execution id and evaluation status. A run containing only `Unknown` results is marked `Incomplete`, never compliant.
 
 ```powershell
 $summary = Test-AzLocalSecurityBaseline -Scope Cluster |
@@ -106,15 +164,22 @@ cd bicep
 
 Built-in definitions are pinned by GUID rather than by display name, because display names change between releases and a renamed definition would silently break the deployment.
 
-## Running it on a schedule
+## Running it centrally on a schedule
 
-A weekly audit that lands in a share and shouts when something critical breaks:
+A weekly audit can run from a management server, jump box or automation worker.
+Keep the configuration and reports outside the Azure Local node, use a service
+identity or protected credential store, and alert on `Unknown` as well as on
+findings:
 
 ```powershell
 $stamp = Get-Date -Format 'yyyy-MM-dd'
 $path = "\\fileserver\compliance\azurelocal\$stamp.html"
 
-$summary = Test-AzLocalSecurityBaseline -Scope Cluster -ConfigPath C:\Config\site.json |
+$target = New-AzLocalSecurityRemoteTarget -Transport WinRM `
+    -ComputerName azl-node01 -Authentication CredSSP `
+    -Credential (Get-Credential)
+
+$summary = Test-AzLocalSecurityBaseline -Target $target -Scope Cluster -ConfigPath C:\Config\site.json |
     New-AzLocalSecurityReport -Path $path -PassThru
 
 if ($summary.CriticalFindings -gt 0 -or $summary.Unknown -gt 0) {
